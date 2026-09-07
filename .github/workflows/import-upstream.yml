@@ -33,7 +33,7 @@ jobs:
           rsync -a --delete \
             --exclude='.git/' \
             --exclude='UPSTREAM.md' \
-            --exclude='.github/workflows/import-upstream.yml' \
+            --exclude='.github/workflows/' \
             /tmp/archify-upstream/ ./
 
           test -f LICENSE
