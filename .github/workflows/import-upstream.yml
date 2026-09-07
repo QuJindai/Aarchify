@@ -1,0 +1,53 @@
+name: Import upstream snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-upstream.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror pinned upstream snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPSTREAM_REPO='https://github.com/tt-a1i/archify.git'
+          UPSTREAM_SHA='920543baa1c6137803c5b45a69d8977152773d35'
+
+          rm -rf /tmp/archify-upstream
+          git clone --no-tags "$UPSTREAM_REPO" /tmp/archify-upstream
+          git -C /tmp/archify-upstream checkout --detach "$UPSTREAM_SHA"
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='UPSTREAM.md' \
+            --exclude='.github/workflows/import-upstream.yml' \
+            /tmp/archify-upstream/ ./
+
+          test -f LICENSE
+          test -f archify/LICENSE
+          test -f archify.zip
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo 'No changes to import.'
+            exit 0
+          fi
+
+          git commit -m "chore: mirror tt-a1i/archify@${UPSTREAM_SHA}"
+          git push origin HEAD:main
