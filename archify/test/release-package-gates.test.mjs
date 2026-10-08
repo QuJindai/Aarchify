@@ -170,7 +170,11 @@ test('GitHub Pages deploys docs only after every repository gate succeeds', () =
   const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'ci.yml'), 'utf8');
   const job = workflowJob(workflow, 'deploy-pages');
   assert.match(job, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
-  assert.match(job, /needs: \[test, webm-artifact, zip-freshness, published-update-manifest, package-smoke\]/);
+  assert.match(job, /needs: \[test, webm-artifact, zip-freshness, published-update-manifest, package-smoke, site-preflight\]/);
+  assert.match(job, /github\.repository == 'tt-a1i\/archify'/);
+  const preflight = workflowJob(workflow, 'site-preflight');
+  assert.match(preflight, /gallery\/manifest\.json/);
+  assert.match(preflight, /check\.ok === true/);
   assert.match(job, /pages: write/);
   assert.match(job, /id-token: write/);
   assert.match(job, /repos\/\$\{GITHUB_REPOSITORY\}\/git\/ref\/heads\/main/);
