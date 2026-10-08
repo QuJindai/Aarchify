@@ -187,9 +187,40 @@ jobs:
       - name: Validate packaged skill without installing dependencies
         run: node scripts/package-smoke.mjs
 
+  site-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify all published proof artifacts and their receipts
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = path.resolve('docs');
+          for (const file of ['index.html', '.nojekyll', 'gallery/manifest.json']) {
+            if (!fs.existsSync(path.join(root, file))) throw new Error('Missing site file: ' + file);
+          }
+          const manifest = JSON.parse(fs.readFileSync(path.join(root, 'gallery/manifest.json'), 'utf8'));
+          if (!Array.isArray(manifest.entries) || manifest.entries.length === 0) {
+            throw new Error('Site proof manifest has no entries.');
+          }
+          for (const entry of manifest.entries) {
+            const artifact = path.resolve(root, entry.artifact ?? '');
+            if (!artifact.startsWith(root + path.sep) || !fs.existsSync(artifact)) {
+              throw new Error('Missing or unsafe proof artifact: ' + entry.id);
+            }
+            if (!Array.isArray(entry.checks) || !entry.checks.every((check) => check.ok === true)) {
+              throw new Error('Unverified proof artifact: ' + entry.id);
+            }
+          }
+          console.log('Static site ready with ' + manifest.entries.length + ' checked proof artifacts.');
+          NODE
+
   deploy-pages:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, webm-artifact, zip-freshness, published-update-manifest, package-smoke]
+    # The original project owns the Pages site. This mirror publishes docs/ via Vercel Git.
+    # Do not fail every mirror main push attempting an unconfigured Pages deployment.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'tt-a1i/archify'
+    needs: [test, webm-artifact, zip-freshness, published-update-manifest, package-smoke, site-preflight]
     runs-on: ubuntu-latest
     concurrency:
       group: github-pages
