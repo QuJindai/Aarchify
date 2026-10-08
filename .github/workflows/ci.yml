@@ -92,7 +92,24 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      # Mirrors carry the upstream stable update manifest, not a fork-owned Release.
+      # Validate that provenance instead of falsely requiring a local Release.
+      - name: Validate upstream-owned update manifest in mirror
+        if: github.repository != 'tt-a1i/archify'
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { validateStableUpdateManifest } from './archify/scripts/update-contract.mjs';
+          const manifest = validateStableUpdateManifest(
+            JSON.parse(fs.readFileSync('docs/skill-updates/archify/stable.json', 'utf8'))
+          );
+          if (manifest.source.repository !== 'https://github.com/tt-a1i/archify') {
+            throw new Error('Mirror stable update manifest must point to the verified upstream repository.');
+          }
+          console.log('Validated upstream-owned stable manifest; no fork-owned GitHub Release required.');
+          NODE
       - name: Public notifier manifest must reference an existing stable Release
+        if: github.repository == 'tt-a1i/archify'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -201,6 +218,13 @@ jobs:
       - name: Configure GitHub Pages
         if: steps.deployment-head.outputs.current == 'true'
         uses: actions/configure-pages@v6
+      - name: Verify publishable static site
+        if: steps.deployment-head.outputs.current == 'true'
+        run: |
+          test -s docs/index.html
+          test -s docs/gallery/manifest.json
+          test -s docs/gallery/artifacts/agent-tool-call.workflow.html
+          test -e docs/.nojekyll
       - name: Upload checked documentation
         if: steps.deployment-head.outputs.current == 'true'
         uses: actions/upload-pages-artifact@v5
