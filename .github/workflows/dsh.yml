@@ -61,6 +61,11 @@ jobs:
       - uses: pnpm/action-setup@v5
         with:
           version: 10
+      - name: Fetch upstream DSH release snapshot for mirrored runner
+        if: github.repository != 'tt-a1i/archify'
+        run: |
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
       - name: Real tarball install, discovery, package-smoke, uninstall
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
 
@@ -86,6 +91,11 @@ jobs:
       - uses: pnpm/action-setup@v5
         with:
           version: 10
+      - name: Fetch upstream DSH release snapshot for mirrored runner
+        if: github.repository != 'tt-a1i/archify'
+        run: |
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
       - name: Real DSH distribution acceptance
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
         shell: bash
