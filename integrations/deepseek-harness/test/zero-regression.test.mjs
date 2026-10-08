@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { stripVTControlCharacters } from 'node:util';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
@@ -43,12 +44,14 @@ test('full-depth Skills CLI discovery still finds only one skill named archify',
     encoding: 'utf8',
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const names = [...result.stdout.matchAll(/^\s*[-*]\s+(\S+)/gm)].map((match) => match[1])
+  // The Skills CLI may colorize the skill name; ANSI sequences break word boundaries.
+  const output = stripVTControlCharacters(result.stdout);
+  const names = [...output.matchAll(/^\s*[-*]\s+(\S+)/gm)].map((match) => match[1])
     .filter((name) => name === 'archify' || /archify/i.test(name));
   const unique = new Set(
-    [...result.stdout.matchAll(/\barchify\b/gi)].map((match) => match[0].toLowerCase()),
+    [...output.matchAll(/\barchify\b/gi)].map((match) => match[0].toLowerCase()),
   );
-  assert.ok(result.stdout.includes('archify'), result.stdout);
+  assert.ok(output.includes('archify'), output);
   assert.equal(unique.size, 1, result.stdout);
   assert.ok(names.length <= 1 || new Set(names).size === 1, result.stdout);
 });
