@@ -28,6 +28,8 @@ const proofs = [
 
 test('landing metadata describes the full technical-diagram product and trusted hero promise', () => {
   assert.match(landing, /<title>Archify — Technical Diagrams from Plain English<\/title>/);
+  assert.match(landing, /<meta property="og:image" content="https:\/\/aarchify\.vercel\.app\/assets\/archify-social-preview\.png">/);
+  assert.match(landing, /<meta property="og:url" content="https:\/\/aarchify\.vercel\.app\/">/);
   assert.match(landing, /<meta property="og:title" content="Archify — Technical Diagrams from Plain English">/);
   assert.match(landing, /An agent skill for Cursor, Claude Code, Codex CLI, and OpenCode/);
   assert.equal((landing.match(/npx -y skills add tt-a1i\/archify --skill archify --agent cursor --global --copy --yes/g) || []).length, 2);
