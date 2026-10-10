@@ -1,0 +1,73 @@
+name: One-shot import Archify v3.0.1
+
+# Source upgrade is pinned, auditable, and scoped to this temporary feature branch.
+# This workflow removes itself in the generated commit so it cannot repeat.
+on:
+  push:
+    branches: [upgrade/archify-v3.0.1-20261011]
+    paths:
+      - .github/workflows/upgrade-archify-v3-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: one-shot-archify-upgrade-20261011
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Import fixed upstream tree with validated mirror overlay and v2 archive
+        shell: bash
+        env:
+          EXPECTED_TAG_COMMIT: 2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c
+          EXPECTED_OVERLAY_BLOB: bae2e7604e239223582f6790e4bb7231fd335c43
+          EXPECTED_TREE: 228eb0ce78e5121abbd620cf74c57fb80b4dab5f
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'QuJindai/Aarchify'
+          test "$GITHUB_REF" = 'refs/heads/upgrade/archify-v3.0.1-20261011'
+          test "$(git hash-object .upgrade-v3-overlay.patch)" = "$EXPECTED_OVERLAY_BLOB"
+          git merge-base --is-ancestor 73398b4b83b060a2c40847463bda7f048de81325 HEAD
+
+          # Fetch a named release tag, never the moving upstream default branch.
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            'refs/tags/v3.0.1:refs/tags/archify-import-v3.0.1'
+          actual_commit="$(git rev-parse 'refs/tags/archify-import-v3.0.1^{commit}')"
+          test "$actual_commit" = "$EXPECTED_TAG_COMMIT"
+
+          # Preserve the published v2 site verbatim, including its independent HTML viewers.
+          mkdir -p "$RUNNER_TEMP/v2-site"
+          cp -a docs/. "$RUNNER_TEMP/v2-site/"
+          cp .upgrade-v3-overlay.patch "$RUNNER_TEMP/mirror-overlay.patch"
+
+          # This runner's isolated worktree is entirely replaced with the verified tag.
+          # .git metadata remains untouched. The ephemeral importer disappears here.
+          git rm -r -q -- .
+          git archive "$actual_commit" | tar -xf - -C "$GITHUB_WORKSPACE"
+          mkdir -p docs/legacy-v2
+          cp -a "$RUNNER_TEMP/v2-site/." docs/legacy-v2/
+
+          git apply --check "$RUNNER_TEMP/mirror-overlay.patch"
+          git apply "$RUNNER_TEMP/mirror-overlay.patch"
+          git add -A
+          actual_tree="$(git write-tree)"
+          printf 'Expected tree: %s\nActual tree: %s\n' "$EXPECTED_TREE" "$actual_tree"
+          test "$actual_tree" = "$EXPECTED_TREE"
+          test -s docs/legacy-v2/index.html
+          test -s docs/legacy-v2/gallery/artifacts/agent-tool-call.workflow.html
+          node -e 'const p=require("./archify/package.json");if(p.version!=="3.0.1")process.exit(1)'
+          if git ls-files .github/workflows/upgrade-archify-v3-once.yml .upgrade-v3-overlay.patch | grep -q .; then
+            echo 'One-shot bootstrap files unexpectedly remained in release tree' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "feat: import immutable Archify v3.0.1 with preserved v2 site"
+          git push origin HEAD:refs/heads/upgrade/archify-v3.0.1-20261011
