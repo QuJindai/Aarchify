@@ -5,11 +5,25 @@ on:
     paths:
       - 'integrations/deepseek-harness/**'
       - '.github/workflows/dsh.yml'
+      - 'archify/renderers/shared/atomic-output.mjs'
+      - 'archify/renderers/shared/output-path.mjs'
+      - 'archify/renderers/shared/path-semantics.mjs'
+      - 'archify/renderers/shared/portable-path.mjs'
+      - 'archify/renderers/shared/sidecar-path.mjs'
+      - 'scripts/stage-clean-skill.mjs'
+      - 'scripts/third-party-notices-contract.mjs'
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'integrations/deepseek-harness/**'
       - '.github/workflows/dsh.yml'
+      - 'archify/renderers/shared/atomic-output.mjs'
+      - 'archify/renderers/shared/output-path.mjs'
+      - 'archify/renderers/shared/path-semantics.mjs'
+      - 'archify/renderers/shared/portable-path.mjs'
+      - 'archify/renderers/shared/sidecar-path.mjs'
+      - 'scripts/stage-clean-skill.mjs'
+      - 'scripts/third-party-notices-contract.mjs'
     tags:
       - 'archify-dsh-v*'
   schedule:
@@ -30,20 +44,23 @@ jobs:
     name: DSH package contract
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      # The mirror did not import annotated release refs from the original repo.
-      # Import the exact immutable upstream tag before running release contracts.
-      - name: Fetch immutable upstream DSH release tag for mirrored source
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
           git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
-            '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Static adapter contracts
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node --test integrations/deepseek-harness/test/*.test.mjs
 
   distribution-acceptance:
@@ -52,21 +69,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           version: 10
-      - name: Fetch upstream DSH release snapshot for mirrored runner
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
           git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
-            '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real tarball install, discovery, package-smoke, uninstall
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
 
   adapter-release:
@@ -82,20 +104,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           version: 10
-      - name: Fetch upstream DSH release snapshot for mirrored runner
+      - name: Adapter staging regressions on the release host
+        run: node --test integrations/deepseek-harness/test/adapter-staging.test.mjs
+        shell: bash
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
           git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
-            '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real DSH distribution acceptance
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
         shell: bash

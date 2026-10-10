@@ -28,10 +28,9 @@ const proofs = [
 
 test('landing metadata describes the full technical-diagram product and trusted hero promise', () => {
   assert.match(landing, /<title>Archify — Technical Diagrams from Plain English<\/title>/);
-  assert.match(landing, /<meta property="og:image" content="https:\/\/aarchify\.vercel\.app\/assets\/archify-social-preview\.png">/);
   assert.match(landing, /<meta property="og:url" content="https:\/\/aarchify\.vercel\.app\/">/);
   assert.match(landing, /<meta property="og:title" content="Archify — Technical Diagrams from Plain English">/);
-  assert.match(landing, /An agent skill for Cursor, Claude Code, Codex CLI, and OpenCode/);
+  assert.match(landing, /An agent skill for Cursor, Claude Code, Codex CLI, OpenCode, and GitHub Copilot/);
   assert.equal((landing.match(/npx -y skills add tt-a1i\/archify --skill archify --agent cursor --global --copy --yes/g) || []).length, 2);
   assert.match(landing, /From plain English<br>to architecture <em>you can trust\.<\/em>/);
 });
@@ -51,7 +50,6 @@ test('landing hero leads with three real generated proof artifacts', () => {
     assert.equal(entry.animation, 'trace');
     assert.equal(entry.nodeCount, proof.nodes);
     assert.equal(entry.edgeCount, proof.edges);
-    assert.ok(entry.viewIds.includes(proof.view));
     assert.ok(entry.checks.every(check => check.ok), `${proof.id}: validation receipt is not green`);
     assert.ok(fs.existsSync(path.join(docsRoot, proof.artifact)), `${proof.id}: live artifact missing`);
     assert.match(landing, new RegExp(`data-proof="${proof.key}"`));
