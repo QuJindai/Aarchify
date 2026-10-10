@@ -258,9 +258,9 @@ async function runControlledWindowsPathE2E() {
     });
     requireSuccess('repository origin discovery', originResult);
     const originUrl = originResult.stdout.trim()
-      .replace(/^git@github\\.com:/, 'https://github.com/')
-      .replace(/\\.git$/i, '');
-    assert.match(originUrl, /^https:\\/\\/github\\.com\\/[^/]+\\/[^/]+$/);
+      .replace(/^git@github\.com:/, 'https://github.com/')
+      .replace(/\.git$/i, '');
+    assert.match(originUrl, /^https:\/\/github\.com\/[^/]+\/[^/]+$/);
     evidenceDiagram.meta.repository = {
       url: originUrl,
       revision: revision.stdout.trim(),
