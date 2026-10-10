@@ -50,10 +50,11 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-      - name: Fetch upstream immutable DSH release tag in mirror
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git             '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Static adapter contracts
         run: node --test integrations/deepseek-harness/test/*.test.mjs
 
@@ -72,10 +73,11 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           version: 10
-      - name: Fetch upstream immutable DSH release tag in mirror
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git             '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real tarball install, discovery, package-smoke, uninstall
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
 
@@ -104,10 +106,11 @@ jobs:
       - name: Adapter staging regressions on the release host
         run: node --test integrations/deepseek-harness/test/adapter-staging.test.mjs
         shell: bash
-      - name: Fetch upstream immutable DSH release tag in mirror
+      - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git             '+refs/tags/archify-dsh-v0.1.0:refs/tags/archify-dsh-v0.1.0'
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real DSH distribution acceptance
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
         shell: bash
