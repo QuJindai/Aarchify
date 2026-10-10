@@ -72,9 +72,25 @@ test('every checked-in viewer artifact carries its font and reaches no external 
   const tracked = spawnSync('git', ['ls-files', '-z', '--', 'archify/examples', 'docs', 'examples'], { cwd: repoRoot, encoding: 'utf8' });
   assert.equal(tracked.status, 0, tracked.stderr);
   const artifacts = tracked.stdout.split('\0').filter((entry) => entry.endsWith('.html'))
+    .filter((entry) => !entry.startsWith('docs/legacy-v2/'))
+    // Legacy v2 HTML is preserved byte-for-byte for compatibility. The v3
+    // offline guarantee applies only to current, generated delivery artifacts.
     .filter((entry) => /Archify\.readerLayout/.test(fs.readFileSync(path.join(repoRoot, entry), 'utf8')));
   for (const required of ['examples/checkout-platform-delta.html', ...DIAGRAMS.map(([, , output]) => `archify/examples/${output}`)]) {
     assert.ok(artifacts.includes(required), `missing delivery-chain artifact: ${required}`);
   }
   for (const relative of artifacts) assertOfflineArtifact(fs.readFileSync(path.join(repoRoot, relative), 'utf8'), relative);
+});
+
+test('the preserved v2 site and diagram viewer remain accessible in their archive', () => {
+  const archived = [
+    'docs/legacy-v2/index.html',
+    'docs/legacy-v2/gallery/manifest.json',
+    'docs/legacy-v2/gallery/artifacts/agent-tool-call.workflow.html',
+  ];
+  for (const relative of archived) {
+    const file = path.join(repoRoot, relative);
+    assert.ok(fs.statSync(file, { throwIfNoEntry: false })?.isFile(), 'missing v2 archive: ' + relative);
+    assert.ok(fs.statSync(file).size > 100, 'empty v2 archive: ' + relative);
+  }
 });
