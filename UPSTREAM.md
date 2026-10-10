@@ -34,3 +34,15 @@ GitHub Pages has not been enabled for this repository. The `deploy-pages` job is
 3. Verify Vercel shows `READY` for the exact merged commit with deployment target `production`.
 4. Inspect `/` and `/gallery/artifacts/agent-tool-call.workflow.html` on the production domain.
 5. Keep the last known-good deployment for rollback. Do not promote a failed preview or expose credentials in logs.
+
+## Verified v3.0.1 upgrade (2026-10-11)
+
+- Previous mirror state: `2.17.0-dev.1`, commit `73398b4b83b060a2c40847463bda7f048de81325`.
+- Official stable release: `tt-a1i/archify@v3.0.1`, immutable commit `2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c`.
+- New core and build sources imported from the fixed tag, with upstream MIT license and attribution preserved.
+- Fork-specific customizations are limited to release-provenance CI checks, DSH tag evidence, branded site metadata, Vercel root hosting, tests, and compatibility archive.
+- Old v2 site and artifacts remain available under `/legacy-v2/`; Git history keeps the original source and old HTML intact.
+- v3 upstream intentionally removes guided/story modes and noncanonical share-card exports. They remain accessible only in preserved v2 HTML and are **not** represented as current v3 features.
+- Hosting: Vercel Hobby project `aarchify`, team `qujindai`, `website/` Astro static build. Build base changes to `/` on Vercel, while upstream Pages remains `/archify`.
+- Run complete `npm test`, browser checks, `website npm run check && npm run build && npm test`, CI, and preview before production merge.
+- Production deploy must match merged SHA; the prior `73398b4` Vercel deployment remains a rollback candidate.

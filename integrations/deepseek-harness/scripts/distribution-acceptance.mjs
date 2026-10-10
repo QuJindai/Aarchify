@@ -4,23 +4,26 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { containedBy, sameEntry } from '../../../archify/renderers/shared/path-semantics.mjs';
 import { spawnCli, spawnCliSync } from './resolve-cli.mjs';
 import { runWithTransientNetworkRetry } from './transient-retry.mjs';
+import { adapterCommit, manifest, release, releaseSnapshot } from './release-source.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const integrationRoot = path.resolve(here, '..');
 const repoRoot = path.resolve(integrationRoot, '..', '..');
-const PACKAGE_NAME = '@tt-a1i/archify-dsh';
-const PACKAGE_VERSION = '0.1.0';
-const DSH_RELEASE_REF = 'archify-dsh-v0.1.0';
-const DSH_SPEC = '@deepseek-ai/dsh@0.1.0-rc.6';
+const PACKAGE_NAME = manifest.name;
+const PACKAGE_VERSION = manifest.version;
+const DSH_RELEASE_REF = release.sourceCommit;
+const DSH_PACKAGE_NAME = '@deepseek-ai/dsh';
+const DSH_SPEC = `${DSH_PACKAGE_NAME}@${release.dshVersion}`;
 const PROFILE = 'archify-dsh-acceptance';
 const DSH_RUNTIME_INSTALL_TIMEOUT = process.platform === 'win32' ? 600_000 : 300_000;
 const PLUGIN_MUTATION_TIMEOUT = 180_000;
 
 const receipt = {
   ok: false,
-  adapter: { name: PACKAGE_NAME, version: PACKAGE_VERSION },
+  adapter: { name: PACKAGE_NAME, version: PACKAGE_VERSION, commit: adapterCommit },
   dsh: { spec: DSH_SPEC },
   node: process.version,
   platform: process.platform,
@@ -132,7 +135,7 @@ function waitForProbe(child, file, timeoutMs) {
 }
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-dsh-acceptance-'));
-const tarball = path.join(scratch, 'tt-a1i-archify-dsh-0.1.0.tgz');
+const tarball = path.join(scratch, `tt-a1i-archify-dsh-${PACKAGE_VERSION}.tgz`);
 const dshHome = path.join(scratch, 'dsh-home');
 const agentsHome = path.join(scratch, 'agents-home');
 const dshRuntime = path.join(scratch, 'dsh-runtime');
@@ -162,7 +165,9 @@ try {
 } catch (error) {
   fail('pack', `pack did not emit JSON: ${error.message}\n${pack.stdout}`);
 }
-if (packReceipt.name !== PACKAGE_NAME || packReceipt.version !== PACKAGE_VERSION || !fs.existsSync(tarball)) {
+if (packReceipt.name !== PACKAGE_NAME || packReceipt.version !== PACKAGE_VERSION
+  || packReceipt.adapterCommit !== adapterCommit || packReceipt.sourceCommit !== release.sourceCommit
+  || !fs.existsSync(tarball)) {
   fail('pack', 'pack receipt identity mismatch', { packReceipt, tarball });
 }
 pass('pack', { filename: packReceipt.filename, fileCount: packReceipt.files?.length });
@@ -175,14 +180,18 @@ requireStatus('tarball-inspect', run('tar', ['-xzf', path.basename(tarball), '-C
 const packedPkg = JSON.parse(fs.readFileSync(path.join(inspectRoot, 'package', 'package.json'), 'utf8'));
 const packedFiles = listRelativeFiles(path.join(inspectRoot, 'package'));
 const forbidden = packedFiles.filter((file) => (
+  // path-contract-allow: portable-logical-path -- npm tar entries use normalized slash-separated names.
   file.startsWith('test/')
-  || file.includes('node_modules/')
-  || file.includes('package-lock.json')
-  || file.includes('.hive')
-  || file.includes('.workbuddy')
-  || file.includes('probe-skills')
-  || file.includes('generate-brand-marks.mjs')
-  || file.includes('generate-validators.mjs')
+  || [
+    'node_modules/',
+    'package-lock.json',
+    '.hive',
+    '.workbuddy',
+    'probe-skills',
+    'generate-brand-marks.mjs',
+    'generate-validators.mjs',
+  // path-contract-allow: portable-logical-path -- Each fragment is matched inside an npm tar entry name.
+  ].some((fragment) => file.includes(fragment))
 ));
 if (packedPkg.name !== PACKAGE_NAME || packedPkg.version !== PACKAGE_VERSION || forbidden.length > 0) {
   fail('tarball-inspect', 'packed identity or exclusions failed', { forbidden, packedPkg });
@@ -240,9 +249,12 @@ requireStatus('dsh-runtime-install', runtimeInstall, {
 const dshPackageRoot = path.join(dshRuntime, 'node_modules', '@deepseek-ai', 'dsh');
 const dshManifest = JSON.parse(fs.readFileSync(path.join(dshPackageRoot, 'package.json'), 'utf8'));
 const dshBin = path.join(dshPackageRoot, 'lib', 'bin.js');
-if (dshManifest.version !== DSH_SPEC.slice(DSH_SPEC.lastIndexOf('@') + 1) || !fs.existsSync(dshBin)) {
+if (dshManifest.name !== DSH_PACKAGE_NAME || dshManifest.version !== release.dshVersion
+  || !fs.existsSync(dshBin)) {
   fail('dsh-runtime-install', 'installed DSH runtime identity mismatch', {
+    name: dshManifest.name,
     version: dshManifest.version,
+    expectedVersion: release.dshVersion,
     binExists: fs.existsSync(dshBin),
   });
 }
@@ -351,15 +363,19 @@ try {
 } catch (error) {
   fail('resource-base', `cannot realpath installed Skill root: ${error.message}`, { resourcePath, installedPackage });
 }
-const resourceRelative = path.relative(packageReal, resourceReal);
-const resourceInsidePackage = resourceRelative
-  && !resourceRelative.startsWith(`..${path.sep}`)
-  && resourceRelative !== '..'
-  && !path.isAbsolute(resourceRelative);
-if (!resourceInsidePackage || !resourceReal.includes(`${path.sep}skills${path.sep}archify`)) {
+const resourceContainment = containedBy(packageReal, resourceReal);
+const expectedResourceRoots = [
+  path.join(packageReal, 'skills'),
+  path.join(packageReal, 'skills', 'archify'),
+];
+const expectedResource = expectedResourceRoots.some((candidate) => (
+  fs.existsSync(candidate) && sameEntry(candidate, resourceReal).status === 'match'
+));
+if (resourceContainment.status !== 'match' || !expectedResource) {
   fail('resource-base', 'Skill resource base is not inside the installed tarball package', {
     resourcePath: resourceReal,
     installedPackage: packageReal,
+    relation: resourceContainment,
   });
 }
 pass('resource-base', { resourcePath: resourceReal });
@@ -367,14 +383,10 @@ pass('resource-base', { resourcePath: resourceReal });
 const skillRoot = fs.existsSync(path.join(resourceReal, 'SKILL.md'))
   ? resourceReal
   : path.join(resourceReal, 'archify');
-const taggedSmoke = run('git', ['show', `${DSH_RELEASE_REF}:scripts/package-smoke.mjs`], {
-  cwd: repoRoot,
-});
-requireStatus('package-smoke', taggedSmoke, { command: `git show ${DSH_RELEASE_REF}:scripts/package-smoke.mjs` });
-const taggedSmokePath = path.join(scratch, 'package-smoke-v0.1.0.mjs');
-fs.writeFileSync(taggedSmokePath, taggedSmoke.stdout);
-const smoke = run(process.execPath, [taggedSmokePath, skillRoot], {
-  cwd: repoRoot,
+const sourceSnapshot = path.join(scratch, 'release-source');
+releaseSnapshot(sourceSnapshot);
+const smoke = run(process.execPath, [path.join(sourceSnapshot, 'scripts', 'package-smoke.mjs'), skillRoot], {
+  cwd: sourceSnapshot,
   timeout: 120_000,
 });
 requireStatus('package-smoke', smoke, { command: `${DSH_RELEASE_REF} package-smoke.mjs <installed-skill-root>` });
