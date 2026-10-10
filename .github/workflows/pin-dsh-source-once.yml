@@ -28,7 +28,7 @@ jobs:
           # This release metadata comes from the existing v3 adapter manifest;
           # don't trust a live branch or allow a tag to drift to a different SHA.
           test "$(node -p 'require("./integrations/deepseek-harness/release.json").sourceCommit')" = "$SHA"
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+          git fetch --no-tags https://github.com/tt-a1i/archify.git \
             "+$SHA:refs/tags/$TAG"
           test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$SHA"
           test "$(git cat-file -t "$SHA")" = commit
