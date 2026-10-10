@@ -251,8 +251,18 @@ async function runControlledWindowsPathE2E() {
     });
     requireSuccess('repository revision discovery', revision);
     const evidenceDiagram = JSON.parse(fs.readFileSync(architectureInput, 'utf8'));
+    // This integration check must use the real checkout origin, not assume the
+    // canonical upstream owner. Origin equality remains strictly validated.
+    const originResult = spawnSync('git', ['-C', repoRoot, 'remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+    });
+    requireSuccess('repository origin discovery', originResult);
+    const originUrl = originResult.stdout.trim()
+      .replace(/^git@github\\.com:/, 'https://github.com/')
+      .replace(/\\.git$/i, '');
+    assert.match(originUrl, /^https:\\/\\/github\\.com\\/[^/]+\\/[^/]+$/);
     evidenceDiagram.meta.repository = {
-      url: 'https://github.com/tt-a1i/archify',
+      url: originUrl,
       revision: revision.stdout.trim(),
     };
     evidenceDiagram.components[0].sources = [{
