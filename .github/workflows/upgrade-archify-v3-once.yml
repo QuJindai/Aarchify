@@ -28,7 +28,7 @@ jobs:
         env:
           EXPECTED_TAG_COMMIT: 2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c
           EXPECTED_OVERLAY_BLOB: bae2e7604e239223582f6790e4bb7231fd335c43
-          EXPECTED_TREE: bf42fb12552b1c7f3907d0b7448494d5de236779
+          EXPECTED_TREE: 152cf2e8884f88e05187317fc1bac44c7f6762b0
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = 'QuJindai/Aarchify'
@@ -65,7 +65,13 @@ jobs:
           mkdir -p .github/workflows
           cp -a "$RUNNER_TEMP/original-workflows/." .github/workflows/
           git add -A
-          actual_tree="$(git write-tree)"
+          # The one-shot workflow contains the expected digest itself.
+          # Exclude this temporary file from an independent verification index
+          # to avoid a self-referential Git tree hash.
+          verify_index="$RUNNER_TEMP/verified-index"
+          cp "$(git rev-parse --git-path index)" "$verify_index"
+          GIT_INDEX_FILE="$verify_index" git update-index --force-remove .github/workflows/upgrade-archify-v3-once.yml
+          actual_tree="$(GIT_INDEX_FILE="$verify_index" git write-tree)"
           printf 'Expected tree: %s\nActual tree: %s\n' "$EXPECTED_TREE" "$actual_tree"
           test "$actual_tree" = "$EXPECTED_TREE"
           test -s docs/legacy-v2/index.html
