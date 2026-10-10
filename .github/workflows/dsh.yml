@@ -57,6 +57,10 @@ jobs:
             '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Static adapter contracts
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node --test integrations/deepseek-harness/test/*.test.mjs
 
   distribution-acceptance:
@@ -81,6 +85,10 @@ jobs:
             '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real tarball install, discovery, package-smoke, uninstall
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
 
   adapter-release:
@@ -115,5 +123,9 @@ jobs:
             '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real DSH distribution acceptance
+        env:
+          # Nested Git fixtures need the verified immutable v2 source object,
+          # which is fetched into this runner's repository object store above.
+          GIT_ALTERNATE_OBJECT_DIRECTORIES: ${{ github.workspace }}/.git/objects
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
         shell: bash
