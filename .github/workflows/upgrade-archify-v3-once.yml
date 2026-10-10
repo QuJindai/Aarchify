@@ -28,7 +28,7 @@ jobs:
         env:
           EXPECTED_TAG_COMMIT: 2ab3cae7ac2c2a55d7386ca789d03c4fcd31816c
           EXPECTED_OVERLAY_BLOB: bae2e7604e239223582f6790e4bb7231fd335c43
-          EXPECTED_TREE: 228eb0ce78e5121abbd620cf74c57fb80b4dab5f
+          EXPECTED_TREE: bf42fb12552b1c7f3907d0b7448494d5de236779
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = 'QuJindai/Aarchify'
@@ -46,6 +46,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/v2-site"
           cp -a docs/. "$RUNNER_TEMP/v2-site/"
           cp .upgrade-v3-overlay.patch "$RUNNER_TEMP/mirror-overlay.patch"
+          mkdir -p "$RUNNER_TEMP/original-workflows"
+          cp -a .github/workflows/. "$RUNNER_TEMP/original-workflows/"
 
           # This runner's isolated worktree is entirely replaced with the verified tag.
           # .git metadata remains untouched. The ephemeral importer disappears here.
@@ -56,6 +58,12 @@ jobs:
 
           git apply --check "$RUNNER_TEMP/mirror-overlay.patch"
           git apply "$RUNNER_TEMP/mirror-overlay.patch"
+          # A GitHub Actions App token cannot update workflow files.
+          # Preserve the existing workflows exactly; a separate authorized connector
+          # will restore the new tagged workflows after the source import succeeds.
+          rm -rf .github/workflows
+          mkdir -p .github/workflows
+          cp -a "$RUNNER_TEMP/original-workflows/." .github/workflows/
           git add -A
           actual_tree="$(git write-tree)"
           printf 'Expected tree: %s\nActual tree: %s\n' "$EXPECTED_TREE" "$actual_tree"
@@ -63,10 +71,11 @@ jobs:
           test -s docs/legacy-v2/index.html
           test -s docs/legacy-v2/gallery/artifacts/agent-tool-call.workflow.html
           node -e 'const p=require("./archify/package.json");if(p.version!=="3.0.1")process.exit(1)'
-          if git ls-files .github/workflows/upgrade-archify-v3-once.yml .upgrade-v3-overlay.patch | grep -q .; then
-            echo 'One-shot bootstrap files unexpectedly remained in release tree' >&2
+          if git ls-files .upgrade-v3-overlay.patch | grep -q .; then
+            echo 'Bootstrap patch unexpectedly remained in import tree' >&2
             exit 1
           fi
+          test -f .github/workflows/upgrade-archify-v3-once.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m "feat: import immutable Archify v3.0.1 with preserved v2 site"
