@@ -53,7 +53,8 @@ jobs:
       - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Static adapter contracts
         run: node --test integrations/deepseek-harness/test/*.test.mjs
@@ -76,7 +77,8 @@ jobs:
       - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real tarball install, discovery, package-smoke, uninstall
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
@@ -109,7 +111,8 @@ jobs:
       - name: Fetch upstream immutable DSH source commit in mirror
         if: github.repository != 'tt-a1i/archify'
         run: |
-          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git 920543baa1c6137803c5b45a69d8977152773d35
+          git fetch --no-tags --depth=1 https://github.com/tt-a1i/archify.git \
+            '+920543baa1c6137803c5b45a69d8977152773d35:refs/heads/archify-dsh-pinned-source'
           git cat-file -e '920543baa1c6137803c5b45a69d8977152773d35^{tree}'
       - name: Real DSH distribution acceptance
         run: node integrations/deepseek-harness/scripts/distribution-acceptance.mjs
